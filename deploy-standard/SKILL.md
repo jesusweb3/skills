@@ -1,7 +1,7 @@
 ---
 name: deploy-standard
 description: >-
-  Creates the user's standard private-project deployment scaffold and/or
+  Creates the user's standard project deployment scaffold and/or
   deployment README. Use only when the user explicitly asks for their deploy
   standard, for example "создай README по моему стандарту", "создай deploy по
   моему стандарту", or "создай deploy и README по моему стандарту". Supports
@@ -11,7 +11,7 @@ description: >-
 
 # Deploy Standard
 
-Use this skill only for the user's repeatable private-project deploy workflow.
+Use this skill only for the user's repeatable project deploy workflow.
 
 ## Supported modes
 
