@@ -1,6 +1,12 @@
 ---
 name: deploy-standard
-description: Creates the user's standard private-project deployment scaffold and/or deployment README. Use only when the user explicitly asks for their deploy standard, for example: "создай README по моему стандарту", "создай deploy по моему стандарту", or "создай deploy и README по моему стандарту". Supports three modes: README only, deploy only, or deploy plus README. Keep paths, filenames, and structure aligned with the bundled templates.
+description: >-
+  Creates the user's standard private-project deployment scaffold and/or
+  deployment README. Use only when the user explicitly asks for their deploy
+  standard, for example "создай README по моему стандарту", "создай deploy по
+  моему стандарту", or "создай deploy и README по моему стандарту". Supports
+  three modes: README only, deploy only, or deploy plus README. Keep paths,
+  filenames, and structure aligned with the bundled templates.
 ---
 
 # Deploy Standard
