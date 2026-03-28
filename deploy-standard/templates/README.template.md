@@ -64,7 +64,7 @@ systemctl enable --now docker
 5. Сохранить и запустить `deploy/linux/install.sh`.
 
 ```bash
-curl -fsSL -H "Authorization: token {{GITHUB_TOKEN}}" {{RAW_INSTALL_URL}} -o install.sh && chmod +x install.sh && ./install.sh
+{{LINUX_INSTALL_COMMAND}}
 ```
 
 6. После установки заполнить `.env`:
@@ -93,11 +93,7 @@ docker-compose up -d --build
 ### Linux
 
 ```bash
-git -C {{LINUX_INSTALL_DIR}} fetch origin {{DEPLOY_BRANCH}} --prune
-git -C {{LINUX_INSTALL_DIR}} checkout {{DEPLOY_BRANCH}}
-git -C {{LINUX_INSTALL_DIR}} pull --ff-only origin {{DEPLOY_BRANCH}}
-cd {{LINUX_INSTALL_DIR}}/deploy
-docker-compose up -d --build
+{{LINUX_UPDATE_BLOCK}}
 ```
 
 ## Управление

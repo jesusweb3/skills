@@ -23,9 +23,23 @@ This file defines which values change between projects and how they map into the
   - Often the same as `PROJECT_SLUG`.
   - Example: `channel-breakout`
 
+- `REPO_VISIBILITY`
+  - Controls how the Linux install command is generated.
+  - Allowed values:
+    - `public`
+    - `private`
+  - If this cannot be inferred safely, ask the user before generating README.
+
 - `DEPLOY_BRANCH`
   - Branch used in clone, raw GitHub links, and Linux update commands.
   - Example: `main` or `channel-breakout`
+
+- `DEPLOY_BRANCH_MODE`
+  - Decides which Linux update block to generate.
+  - Allowed values:
+    - `single-main` - the project uses one normal branch, usually `main`
+    - `separate-branch` - deploy uses a specific branch and the README should
+      show explicit branch switching commands
 
 - `REPO_URL`
   - Clone URL for `git clone`.
@@ -38,8 +52,8 @@ This file defines which values change between projects and how they map into the
     - `https://raw.githubusercontent.com/REPO_OWNER/REPO_NAME/DEPLOY_BRANCH/deploy/linux/install.sh`
 
 - `GITHUB_TOKEN`
-  - Used only in the README Linux curl example.
-  - Ask for it explicitly when generating README.
+  - Used only in the README Linux curl example for private repositories.
+  - Ask for it explicitly when generating README for a private repository.
   - If the user does not provide one, use `__GITHUB_TOKEN__`.
 
 - `SHORT_DESCRIPTION`
@@ -107,7 +121,26 @@ deploy/
 - Linux install directory uses `LINUX_INSTALL_DIR`.
 - `install.bat` and `install.sh` should clone `REPO_URL`.
 - Linux README curl example should call `RAW_INSTALL_URL`.
-- Linux update commands should use `DEPLOY_BRANCH`.
+- Linux install command depends on `REPO_VISIBILITY`.
+- For `public`, use:
+  - `curl -fsSL RAW_INSTALL_URL -o install.sh && chmod +x install.sh && ./install.sh`
+- For `private`, use:
+  - `curl -fsSL -H "Authorization: token GITHUB_TOKEN" RAW_INSTALL_URL -o install.sh && chmod +x install.sh && ./install.sh`
+- If repository visibility cannot be inferred confidently, ask the user before
+  generating the README.
+- Linux update block depends on `DEPLOY_BRANCH_MODE`.
+- For `single-main`, use:
+  - `git -C LINUX_INSTALL_DIR pull --ff-only origin DEPLOY_BRANCH`
+  - `cd LINUX_INSTALL_DIR/deploy`
+  - `docker-compose up -d --build`
+- For `separate-branch`, use:
+  - `git -C LINUX_INSTALL_DIR fetch origin DEPLOY_BRANCH --prune`
+  - `git -C LINUX_INSTALL_DIR checkout DEPLOY_BRANCH`
+  - `git -C LINUX_INSTALL_DIR pull --ff-only origin DEPLOY_BRANCH`
+  - `cd LINUX_INSTALL_DIR/deploy`
+  - `docker-compose up -d --build`
+- If the branch strategy cannot be inferred from the repo or the user's wording,
+  ask explicitly before generating the README.
 - Compose service name should default to `SERVICE_NAME`.
 - `docker-compose.yaml` should use `restart: unless-stopped` unless the user explicitly asks for a different policy.
 - The Dockerfile should stay on `python:3.13-slim` unless the repo clearly requires another runtime.
