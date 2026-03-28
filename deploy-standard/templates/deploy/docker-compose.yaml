@@ -1,0 +1,12 @@
+services:
+  {{SERVICE_NAME}}:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    ports:
+      - "80:80"
+    volumes:
+      - ../logs:/app/logs
