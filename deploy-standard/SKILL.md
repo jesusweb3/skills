@@ -5,8 +5,10 @@ description: >-
   deployment README. Use only when the user explicitly asks for their deploy
   standard, for example "создай README по моему стандарту", "создай deploy по
   моему стандарту", or "создай deploy и README по моему стандарту". Supports
-  three modes: README only, deploy only, or deploy plus README. Keep paths,
-  filenames, and structure aligned with the bundled templates.
+  three modes: README only, deploy only, or deploy plus README. Treat "deploy"
+  and "deploy + README" as different modes. Do not create README when the user
+  asked only for deploy. Keep paths, filenames, and structure aligned with the
+  bundled templates.
 ---
 
 # Deploy Standard
@@ -22,6 +24,29 @@ Pick exactly one mode from the user's request:
 3. `deploy + README`
 
 If the request is ambiguous, ask which of the three modes is needed.
+
+## Mode selection
+
+Map the user's wording to modes as strictly as possible:
+
+- `создай README по моему стандарту` -> `README only`
+- `создай deploy по моему стандарту` -> `deploy only`
+- `создай deploy и README по моему стандарту` -> `deploy + README`
+
+Treat these as hard distinctions:
+
+- `deploy only` means create only the `deploy/` tree and related deploy files
+- `README only` means create only the README
+- `deploy + README` means create both
+
+Do not widen the request on your own:
+
+- If the user asked for `deploy only`, do not create README
+- If the user asked for `README only`, do not create `deploy/`
+- If the user used vague wording like `создай деплой`, `подготовь деплой`, or
+  `сделай деплой`, ask whether they want `deploy only` or `deploy + README`
+- If the wording is not exact enough to choose safely, ask a short clarification
+  question before creating files
 
 ## What to inspect first
 
@@ -107,6 +132,8 @@ Also gather these values when needed:
    Linux install command.
 5. Keep all deploy path references aligned with the standard layout.
 6. If `deploy/` already differs from the standard, prefer the files actually present in the repo over the template assumptions.
+7. Do not create or modify the `deploy/` tree in this mode unless the user
+   explicitly changed the request.
 
 ### Mode: deploy only
 
@@ -114,6 +141,8 @@ Also gather these values when needed:
 2. Generate the fixed deploy tree.
 3. Adapt placeholders using the gathered values.
 4. Keep the Windows bootstrap script close to the template; only project identifiers and URLs should vary.
+5. Do not create README in this mode unless the user explicitly changed the
+   request.
 
 ### Mode: deploy + README
 
