@@ -36,6 +36,9 @@ Expected behavior:
    - GitHub repository URL
    - branch name
 2. After receiving them, follow the fixed workflow from `SKILL.md`.
+3. Try a normal `git push -u origin <branch>` first using the machine's existing
+   local git authentication.
+4. Do not jump straight to token-based push.
 
 ## Example 3: save changes
 
@@ -66,3 +69,20 @@ Expected behavior:
 1. Run `git rm --cached README.md`
 2. Write a commit message that clearly describes removing the file from tracking
 3. Push to the current branch
+
+## Example 5: first push auth failure
+
+User:
+
+```text
+Сделай первый пуш этого проекта в GitHub.
+```
+
+Expected behavior:
+
+1. Run the standard first setup flow.
+2. Try a normal `git push -u origin main` first.
+3. If push fails with an auth error, explain that the normal local GitHub
+   authentication did not work.
+4. Do not immediately rewrite `origin` or propose embedding a token unless the
+   user explicitly wants a fallback method.

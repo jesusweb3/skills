@@ -54,6 +54,19 @@ Follow this order exactly:
 5. `git branch -m <BRANCH_NAME>`
 6. `git push -u origin <BRANCH_NAME>`
 
+Authentication policy for first setup:
+
+- Always try a normal `git push -u origin <BRANCH_NAME>` first.
+- Assume the machine may already have working GitHub authentication through the
+  local git client, credential manager, or existing login session.
+- Do not suggest tokens, authenticated HTTPS URLs, or temporary auth workarounds
+  before a normal push actually fails.
+- Do not rewrite `origin` to include a token.
+- Do not store tokens in `git remote`, `.git/config`, command history examples,
+  or commit messages.
+- Only discuss token-based fallback if a normal push fails with an auth error
+  and the user explicitly wants a fallback approach.
+
 ## Mode: save changes
 
 Use this for the user's regular development flow.
@@ -100,6 +113,8 @@ Rules:
 - If `origin` already exists during first setup, stop and tell the user instead of blindly replacing it
 - If the directory is already a git repository during first setup, stop and confirm whether the user wants to continue
 - When generating commit messages, prefer short messages that describe the actual change, for example `add deploy-standard skill` or `update github workflow skill examples`
+- For GitHub authentication, prefer the local machine's existing git
+  authentication. Treat token-based push as a fallback, not the default.
 
 ## Safety checks for first setup
 
@@ -109,6 +124,7 @@ Before running the workflow:
 2. Check whether `origin` already exists.
 3. Confirm `REPO_URL`.
 4. Confirm `BRANCH_NAME`.
+5. Attempt a normal push first before proposing any auth workaround.
 
 If everything is clean, run the workflow.
 
