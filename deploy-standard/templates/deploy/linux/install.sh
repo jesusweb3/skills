@@ -2,48 +2,50 @@
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-{{REPO_URL}}}"
-BRANCH_NAME="${BRANCH_NAME:-{{DEPLOY_BRANCH}}}"
-SERVICE_NAME="{{SERVICE_NAME}}"
-INSTALL_DIR="{{LINUX_INSTALL_DIR}}"
-SERVICE_ENV="$INSTALL_DIR/.env"
-COMPOSE_FILE="$INSTALL_DIR/deploy/docker-compose.yaml"
+INSTALL_DIR="{{INSTALL_DIR}}"
+PROJECT_ENV="$INSTALL_DIR/.env"
+COMPOSE_DIR="$INSTALL_DIR/deploy"
 
 check_dependency() {
     if ! command -v "$1" >/dev/null 2>&1; then
-        echo "[ERROR] $1 is not installed. Install $1 and try again." >&2
+        echo "[ERROR] Missing dependency: $1" >&2
         exit 1
     fi
 }
 
 check_dependency git
 check_dependency docker
-check_dependency docker-compose
+
+if command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+else
+    echo "[ERROR] Docker Compose is not installed." >&2
+    exit 1
+fi
 
 if [ -d "$INSTALL_DIR" ]; then
-    echo "[INFO] $SERVICE_NAME is already installed at $INSTALL_DIR"
-    echo "[INFO] Nothing to do."
-    exit 0
+    echo "[ERROR] Install directory already exists:"
+    echo "$INSTALL_DIR"
+    echo "[INFO] Remove it manually before running install again."
+    exit 1
 fi
 
 echo "[INFO] Cloning repository into $INSTALL_DIR..."
-git clone --branch "$BRANCH_NAME" "$REPO_URL" "$INSTALL_DIR"
+git clone "$REPO_URL" "$INSTALL_DIR"
 
-if [ ! -f "$SERVICE_ENV" ] && [ -f "$INSTALL_DIR/.env.example" ]; then
-    cp "$INSTALL_DIR/.env.example" "$SERVICE_ENV"
+if [ -f "$INSTALL_DIR/.env.example" ] && [ ! -f "$PROJECT_ENV" ]; then
+    cp "$INSTALL_DIR/.env.example" "$PROJECT_ENV"
+    echo "[INFO] Created $PROJECT_ENV from .env.example"
 fi
 
 echo
-echo "============================================="
-echo "  $SERVICE_NAME ready:"
-echo "  $INSTALL_DIR"
+echo "============================================"
+echo "Project installed at:"
+echo "$INSTALL_DIR"
 echo
-echo "  Edit configuration:"
-echo "  $SERVICE_ENV"
-echo
-echo "  To start with Docker:"
-echo "  cd $INSTALL_DIR/deploy"
-echo "  docker-compose up -d --build"
-echo
-echo "  Compose file:"
-echo "  $COMPOSE_FILE"
-echo "============================================="
+echo "Next commands:"
+echo "cd $COMPOSE_DIR"
+echo "$COMPOSE_CMD up -d --build"
+echo "============================================"

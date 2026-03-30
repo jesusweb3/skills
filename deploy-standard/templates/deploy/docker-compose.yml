@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: {{CONTAINER_NAME}}
+    restart: always
+{{ENV_FILE_BLOCK}}
+{{PORTS_BLOCK}}
+    command: {{COMMAND_OVERRIDE}}

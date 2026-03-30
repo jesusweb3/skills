@@ -1,17 +1,20 @@
 # Cursor Agent Skills
 
-Набор моих персональных skills для Cursor. Репозиторий хранит переиспользуемые навыки для типовых задач: стандартный deploy workflow и простой GitHub workflow без лишней рутины.
+Набор переиспользуемых skills для Cursor. Репозиторий хранит два рабочих сценария: production-ready deploy generation и простой GitHub workflow для локальных проектов.
 
 ## Skills
 
 ### `deploy-standard`
 
-Создает мой стандартный deploy-набор для приватных проектов.
+Создает production-ready deploy-набор для GitHub-репозитория после обязательного анализа проекта.
 
 Что умеет:
-- создать только `README`
-- создать только папку `deploy`
-- создать `deploy + README` вместе
+- сначала спрашивает, репозиторий публичный или приватный
+- для приватного репозитория запрашивает `GitHub token` и ссылку
+- анализирует структуру проекта, язык, entrypoint и зависимости
+- генерирует `deploy/` с `Dockerfile`, `docker-compose.yml`, `linux/install.sh`, `windows/install.bat`, `windows/install-git-and-python.bat`
+- генерирует чистый `README.md` по фиксированной production-ready структуре
+- в конце показывает структуру файлов и полное содержимое сгенерированных deploy-файлов
 
 Установка:
 
@@ -20,13 +23,13 @@ npx skills add https://github.com/jesusweb3/skills.git --skill deploy-standard
 ```
 
 Примеры запросов:
-- `Создай README по моему стандарту`
-- `Создай deploy по моему стандарту`
-- `Создай deploy и README по моему стандарту`
+- `Создай production-ready deploy skill для этого проекта`
+- `Сгенерируй deploy и README для моего GitHub-репозитория`
+- `Подготовь Dockerfile, compose и install-скрипты после анализа репозитория`
 
 ### `github-standard`
 
-Закрывает мой простой GitHub workflow для локальных проектов.
+Закрывает простой GitHub workflow для локальных проектов.
 
 Что умеет:
 - сделать первый push нового проекта
@@ -46,13 +49,13 @@ npx skills add https://github.com/jesusweb3/skills.git --skill github-standard
 
 ## Быстрый старт
 
-Если нужен конкретный skill только под текущий проект, открываю проект и ставлю его локально:
+Установка `deploy-standard`:
 
 ```bash
 npx skills add https://github.com/jesusweb3/skills.git --skill deploy-standard
 ```
 
-или:
+Установка `github-standard`:
 
 ```bash
 npx skills add https://github.com/jesusweb3/skills.git --skill github-standard
@@ -62,5 +65,9 @@ npx skills add https://github.com/jesusweb3/skills.git --skill github-standard
 
 ```text
 deploy-standard/
+  SKILL.md
+  examples.md
+  reference.md
+  templates/
 github-standard/
 ```

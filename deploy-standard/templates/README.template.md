@@ -1,116 +1,87 @@
-# {{PROJECT_TITLE}}
+# {{PROJECT_NAME}}
 
 {{SHORT_DESCRIPTION}}
 
-## Как это работает
+## How it works
 
 {{HOW_IT_WORKS}}
 
-{{RELAY_LOGIC_SECTION}}
-## Установка
-
-### Windows (Python + venv)
-
-Если `Git` и `Python` уже установлены:
-
-1. Скачать `deploy/windows/install.bat`.
-2. Запустить `install.bat`.
-3. Скрипт клонирует репозиторий в папку `Desktop\{{PROJECT_SLUG}}`.
-4. После установки открыть созданную папку.
-5. Заполнить `.env` в корне проекта.
-6. Запустить `start.bat`.
-
-Если `Git` или `Python` ещё не установлены, сначала запустите `deploy/windows/install-git-and-python.bat`, а затем `install.bat`.
-
-Что делает `install.bat`:
-
-- клонирует ветку `{{DEPLOY_BRANCH}}` из репозитория;
-- создаёт виртуальное окружение `venv`;
-- устанавливает зависимости из `requirements.txt`;
-- копирует `.env.example` в `.env`, если файла ещё нет;
-- создаёт `start.bat` для запуска;
-- создаёт `update.bat` для обновления проекта.
-
-Повторный запуск `install.bat` ничего не переустанавливает: если папка `{{PROJECT_SLUG}}` уже существует, скрипт завершится без изменений.
-
-### Linux (Docker)
-
-Пример установки на Ubuntu 22.04:
-
-1. Переключиться в `root`:
-
-```bash
-sudo -i
-```
-
-2. Обновить систему:
-
-```bash
-apt update && apt -y upgrade
-```
-
-3. Установить зависимости:
-
-```bash
-apt install -y git curl wget nano htop unzip ca-certificates software-properties-common docker.io docker-compose
-```
-
-4. Запустить Docker:
-
-```bash
-systemctl enable --now docker
-```
-
-5. Сохранить и запустить `deploy/linux/install.sh`.
-
-```bash
-{{LINUX_INSTALL_COMMAND}}
-```
-
-6. После установки заполнить `.env`:
-
-```bash
-nano {{LINUX_INSTALL_DIR}}/.env
-```
-
-Сохранить: `Ctrl+O` -> `Enter`, выйти: `Ctrl+X`.
-
-7. Запустить контейнер:
-
-```bash
-cd {{LINUX_INSTALL_DIR}}/deploy
-docker-compose up -d --build
-```
-
-Повторный запуск `install.sh` ничего не переустанавливает: если папка `{{LINUX_INSTALL_DIR}}` уже существует, скрипт завершится без изменений.
-
-## Обновление
+## Installation
 
 ### Windows
 
-Для обновления используйте `update.bat` в корне установленного проекта.
+If `Git` and `Python` are already installed:
+
+1. Download `deploy/windows/install.bat`.
+2. Run `install.bat`.
+3. Open the created project directory.
+4. Fill in `.env` if the project requires configuration.
+5. Run `start.bat`.
+
+If `Git` or `Python` is missing, run `deploy/windows/install-git-and-python.bat` first. This script only installs the base tools and contains no project-specific setup.
+
+`install.bat` performs a strict first-time setup:
+
+- checks Git and Python
+- refuses to continue if the target directory already exists
+- clones the repository
+- creates a virtual environment when the project uses Python
+- installs dependencies
+- creates `.env` from `.env.example` when available
+- creates `start.bat`
+- creates `update.bat`
 
 ### Linux
 
-```bash
-{{LINUX_UPDATE_BLOCK}}
-```
-
-## Управление
+Example for Ubuntu:
 
 ```bash
-cd {{LINUX_INSTALL_DIR}}/deploy
-docker-compose logs -f       # логи в реальном времени
-docker-compose restart       # перезапуск
-docker-compose down          # остановка
-docker-compose up -d         # запуск без пересборки
-docker-compose up -d --build # запуск с пересборкой
+sudo -i
+apt update
+apt install -y git curl wget nano htop unzip ca-certificates software-properties-common docker.io docker-compose
+systemctl enable --now docker
+curl -fsSL {{INSTALL_SCRIPT_URL}} -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
-## Настройки
+After installation:
 
-Скопируйте `.env.example` в `.env` и заполните переменные.
+```bash
+cd {{INSTALL_DIR}}/deploy
+{{COMPOSE_UP_COMMAND}}
+```
 
-Основные переменные:
+## Update
 
-{{ENV_KEYS_SECTION}}
+### Windows
+
+Run:
+
+```bat
+update.bat
+```
+
+### Linux
+
+Run:
+
+```bash
+cd {{INSTALL_DIR}}
+git pull --ff-only
+cd deploy
+{{COMPOSE_UP_COMMAND}}
+```
+
+## Management
+
+```bash
+cd {{INSTALL_DIR}}/deploy
+{{COMPOSE_BIN}} logs -f
+{{COMPOSE_BIN}} restart
+{{COMPOSE_BIN}} down
+{{COMPOSE_BIN}} up -d
+{{COMPOSE_BIN}} up -d --build
+```
+
+## Settings
+
+{{ENV_DESCRIPTION}}

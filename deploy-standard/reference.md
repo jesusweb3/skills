@@ -1,169 +1,258 @@
 # Deploy Standard Reference
 
-This file defines which values change between projects and how they map into the templates.
+Use this file when you need concrete detection rules before generating deploy files.
 
-## Variable map
+## 1. Repository access
 
-- `PROJECT_TITLE`
-  - Human-readable project name.
-  - Used in the README title and short headings.
-  - Example: `Channel BreakOut`
+For a public repository:
 
-- `PROJECT_SLUG`
-  - Kebab-case project/repository name.
-  - Used in Windows install directory, Linux install directory, service naming, and update commands.
-  - Example: `channel-breakout`
+- ask only for the repository URL
 
-- `REPO_OWNER`
-  - GitHub owner or organization.
-  - Example: `jesusweb3`
+For a private repository:
 
-- `REPO_NAME`
-  - GitHub repository name.
-  - Often the same as `PROJECT_SLUG`.
-  - Example: `channel-breakout`
+- ask for the repository URL
+- ask for a GitHub token
+- never print the token back in a final summary
+- never save the token into generated files unless the user explicitly asked for that
 
-- `REPO_VISIBILITY`
-  - Controls how the Linux install command is generated.
-  - Allowed values:
-    - `public`
-    - `private`
-  - If this cannot be inferred safely, ask the user before generating README.
+## 2. Project classification
 
-- `DEPLOY_BRANCH`
-  - Branch used in clone, raw GitHub links, and Linux update commands.
-  - Example: `main` or `channel-breakout`
+### Python indicators
 
-- `DEPLOY_BRANCH_MODE`
-  - Decides which Linux update block to generate.
-  - Allowed values:
-    - `single-main` - the project uses one normal branch, usually `main`
-    - `separate-branch` - deploy uses a specific branch and the README should
-      show explicit branch switching commands
+Strong signals:
 
-- `REPO_URL`
-  - Clone URL for `git clone`.
-  - Default:
-    - `https://github.com/REPO_OWNER/REPO_NAME.git`
+- `requirements.txt`
+- `pyproject.toml`
+- `poetry.lock`
+- `Pipfile`
+- `main.py`
+- `app.py`
+- `manage.py`
+- `wsgi.py`
+- `asgi.py`
 
-- `RAW_INSTALL_URL`
-  - Direct URL to the Linux installer in the selected branch.
-  - Default:
-    - `https://raw.githubusercontent.com/REPO_OWNER/REPO_NAME/DEPLOY_BRANCH/deploy/linux/install.sh`
+Typical deploy interpretation:
 
-- `GITHUB_TOKEN`
-  - Used only in the README Linux curl example for private repositories.
-  - Ask for it explicitly when generating README for a private repository.
-  - If the user does not provide one, use `__GITHUB_TOKEN__`.
+- app service or API: Docker is usually appropriate
+- plain CLI utility without a long-running process: Docker may be optional
 
-- `SHORT_DESCRIPTION`
-  - One or two sentences under the title.
+### Node indicators
 
-- `HOW_IT_WORKS`
-  - Short technical explanation of the core behavior.
-  - Keep it concise.
+Strong signals:
 
-- `RELAY_LOGIC`
-  - Optional short project-specific logic section.
-  - Omit the entire section if empty.
+- `package.json`
+- `package-lock.json`
+- `pnpm-lock.yaml`
+- `yarn.lock`
+- `server.js`
+- `app.js`
+- `index.js`
+- `dist/server.js`
 
-- `ENV_KEYS`
-  - Ordered list of important `.env` variables.
-  - Prefer inferring them from `.env.example`.
-  - If meanings are obvious, add short explanations.
+Typical deploy interpretation:
 
-- `SERVICE_NAME`
-  - Docker Compose service name.
-  - Default: `PROJECT_SLUG`
+- API or web server: Docker is usually appropriate
+- frontend-only static app: Docker is optional unless the repo already uses container deployment
 
-- `PYTHON_ENTRYPOINT`
-  - Main Python file used in generated start commands and Dockerfile.
-  - Default: `main.py`
+### Other runtimes
 
-- `LINUX_INSTALL_DIR`
-  - Default:
-    - `/root/project/PROJECT_SLUG`
+If the repo is clearly Java, Go, PHP, Rust, or another runtime:
 
-## Standard file mapping
+- identify the real start command from project files
+- generate deploy files for that runtime only if the repo structure makes it clear
+- if startup is ambiguous, ask a follow-up question
 
-### README
+## 3. Entrypoint detection
 
-The README should include these sections in order:
+Pick the entrypoint from explicit evidence in this order:
 
-1. Title
-2. Short description
-3. `## Как это работает`
-4. Optional `## Логика ретрансляции`
-5. `## Установка`
-6. `## Обновление`
-7. `## Управление`
-8. `## Настройки`
+1. existing docs or scripts that define how the app starts
+2. Dockerfile or compose file already present in the repo
+3. framework-specific launch file
+4. package manager scripts such as `npm run start`
+5. obvious top-level server file
 
-### Deploy tree
+### Python entrypoint hints
 
-Use this exact structure:
+Prefer explicit app servers when present:
 
-```text
-deploy/
-  linux/
-    install.sh
-  windows/
-    install.bat
-    install-git-and-python.bat
-  docker-compose.yaml
-  Dockerfile
+- FastAPI or Starlette with ASGI app: `uvicorn module:app --host 0.0.0.0 --port <PORT>`
+- Flask production deploy: `gunicorn module:app --bind 0.0.0.0:<PORT>`
+- Django: `gunicorn project.wsgi:application --bind 0.0.0.0:<PORT>`
+- Generic script worker: `python main.py`
+
+Do not switch to `gunicorn` or `uvicorn` unless the dependency or framework is clearly present.
+
+### Node entrypoint hints
+
+Prefer:
+
+- `npm run start` when `package.json` defines a production start script
+- `node server.js`, `node app.js`, or `node dist/server.js` when that is explicit
+
+Do not use a dev command such as `npm run dev`, `nodemon`, or `vite` as the production command.
+
+## 4. Dependency detection
+
+### Python
+
+Use one clear dependency source:
+
+- `requirements.txt` if present
+- otherwise `pyproject.toml` plus the matching toolchain if the repo is clearly Poetry or another manager
+
+If both exist, prefer the file the project actually uses in its docs or scripts.
+
+### Node
+
+Install from the lockfile that exists:
+
+- `npm ci` for `package-lock.json`
+- `pnpm install --frozen-lockfile` for `pnpm-lock.yaml`
+- `yarn install --frozen-lockfile` for `yarn.lock`
+
+If no lockfile exists, use `npm install` only if that is the repo's actual package manager.
+
+## 5. Port detection
+
+Only expose a port if the app actually serves traffic.
+
+Look for:
+
+- `.env.example`
+- existing README examples
+- framework defaults mentioned in code
+- `PORT` environment variable usage
+- explicit bind addresses in source
+
+If no port can be confirmed:
+
+- do not invent one
+- omit `ports:` from compose
+- mention in README only what is actually known
+
+## 6. Docker decision rules
+
+Use Docker when:
+
+- the project is a long-running server, API, webhook handler, bot, or worker
+- Linux deployment is expected through compose
+- the repository is intended to run as a service
+
+Be careful with Docker when:
+
+- the project is a desktop app
+- the project is a local-only CLI tool
+- the runtime depends on unclear host integrations
+
+If Docker is inappropriate, say so and ask whether the user still wants a containerized deploy.
+
+## 7. Windows script rules
+
+### `install-git-and-python.bat`
+
+This script is a universal bootstrap:
+
+- no repository URL inside
+- no token inside
+- no project-specific folder names inside unless the script is explicitly generated for a single project result
+- it may download official Git and Python installers
+- it should stop on failed installs
+
+### `install.bat`
+
+This script is project-specific and may include:
+
+- repository URL
+- project folder name
+- runtime setup commands
+
+Required behavior:
+
+- fail if the install directory already exists
+- clone once
+- do first-time environment setup
+- create `.env` from `.env.example` when available
+- create `start.bat`
+- create `update.bat`
+
+For private repos:
+
+- prefer prompting the user for `GITHUB_TOKEN` at runtime or using an environment variable
+- do not hardcode a real token into the generated file
+
+## 8. Linux script rules
+
+`install.sh` must:
+
+- check required commands before cloning
+- detect `docker compose` versus `docker-compose`
+- refuse to overwrite an existing install directory
+- clone only once
+- prepare `.env`
+- not auto-run containers
+
+The script should end with the next commands the user must run manually.
+
+## 9. README writing rules
+
+Keep README factual.
+
+Use this structure:
+
+1. title
+2. short description
+3. `How it works`
+4. `Installation`
+5. `Update`
+6. `Management`
+7. `Settings`
+
+### Description guidance
+
+Base the description on observable repo behavior:
+
+- what the service receives
+- what it processes
+- what side effects it produces
+
+Avoid vague text such as:
+
+- "modern service"
+- "powerful platform"
+- "production-grade solution"
+
+### Linux installation block
+
+Must include a full command sequence with:
+
+```bash
+sudo -i
+apt update
+apt install -y git curl wget nano htop unzip ca-certificates software-properties-common docker.io docker-compose
+systemctl enable --now docker
+curl -fsSL <INSTALL_SH_URL> -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
-## Template substitution rules
+If the repository is private, the command may need an authenticated download flow, but avoid printing a real token.
 
-- README title uses `PROJECT_TITLE`, not the slug.
-- Desktop install path on Windows uses `%USERPROFILE%\Desktop\PROJECT_SLUG`.
-- Linux install directory uses `LINUX_INSTALL_DIR`.
-- `install.bat` and `install.sh` should clone `REPO_URL`.
-- Linux README curl example should call `RAW_INSTALL_URL`.
-- Linux install command depends on `REPO_VISIBILITY`.
-- For `public`, use:
-  - `curl -fsSL RAW_INSTALL_URL -o install.sh && chmod +x install.sh && ./install.sh`
-- For `private`, use:
-  - `curl -fsSL -H "Authorization: token GITHUB_TOKEN" RAW_INSTALL_URL -o install.sh && chmod +x install.sh && ./install.sh`
-- If repository visibility cannot be inferred confidently, ask the user before
-  generating the README.
-- Linux update block depends on `DEPLOY_BRANCH_MODE`.
-- For `single-main`, use:
-  - `git -C LINUX_INSTALL_DIR pull --ff-only origin DEPLOY_BRANCH`
-  - `cd LINUX_INSTALL_DIR/deploy`
-  - `docker-compose up -d --build`
-- For `separate-branch`, use:
-  - `git -C LINUX_INSTALL_DIR fetch origin DEPLOY_BRANCH --prune`
-  - `git -C LINUX_INSTALL_DIR checkout DEPLOY_BRANCH`
-  - `git -C LINUX_INSTALL_DIR pull --ff-only origin DEPLOY_BRANCH`
-  - `cd LINUX_INSTALL_DIR/deploy`
-  - `docker-compose up -d --build`
-- If the branch strategy cannot be inferred from the repo or the user's wording,
-  ask explicitly before generating the README.
-- Compose service name should default to `SERVICE_NAME`.
-- `docker-compose.yaml` should use `restart: unless-stopped` unless the user explicitly asks for a different policy.
-- The Dockerfile should stay on `python:3.13-slim` unless the repo clearly requires another runtime.
+## 10. Multi-service repositories
 
-## Practical defaults
+If the repository contains multiple deployable apps, do not pick one silently.
 
-If the user did not specify something and the repo does not contradict it:
+Ask:
 
-- `REPO_NAME = PROJECT_SLUG`
-- `SERVICE_NAME = PROJECT_SLUG`
-- `PYTHON_ENTRYPOINT = main.py`
-- `LINUX_INSTALL_DIR = /root/project/PROJECT_SLUG`
-- Dockerfile copies:
-  - `requirements.txt`
-  - `src/`
-  - `main.py`
+- which service should be deployed
+- whether only one service must go into `docker-compose.yml`
 
-## Consistency checklist
+The skill's default is one deploy target and one compose service.
 
-Before finishing, verify:
+## 11. Final output
 
-- README file names match the generated deploy files.
-- Windows and Linux install paths use the same project slug.
-- `REPO_URL`, raw GitHub URL, and branch all point to the same repository.
-- `docker-compose.yaml` references `deploy/Dockerfile`.
-- The README `Настройки` section matches `.env.example` or the user's supplied variable list.
+At the end, always show:
+
+- file tree
+- full contents of generated deploy files
+- full contents of generated `README.md`
+
+Do not omit files the user explicitly requested.

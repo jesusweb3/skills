@@ -1,169 +1,235 @@
 ---
 name: deploy-standard
-description: >-
-  Creates the user's standard project deployment scaffold and/or
-  deployment README. Use only when the user explicitly asks for their deploy
-  standard, for example "создай README по моему стандарту", "создай deploy по
-  моему стандарту", or "создай deploy и README по моему стандарту". Supports
-  three modes: README only, deploy only, or deploy plus README. Treat "deploy"
-  and "deploy + README" as different modes. Do not create README when the user
-  asked only for deploy. Keep paths, filenames, and structure aligned with the
-  bundled templates.
+description: Creates a production-ready deployment package for a GitHub project. Use when the user asks to generate deploy files, Dockerfile, docker-compose, install scripts, or a deployment README for an existing repository. First ask whether the repository is public or private; for private repos request both the GitHub token and repository URL, and for public repos request the repository URL. After access is confirmed, analyze the project, detect the runtime and entrypoint, then generate `deploy/` scripts and a clean production-ready `README.md` without guessing missing critical details.
 ---
 
 # Deploy Standard
 
-Use this skill only for the user's repeatable project deploy workflow.
+Use this skill to build a strict, production-ready deploy package for a repository.
 
-## Supported modes
+## Core rule
 
-Pick exactly one mode from the user's request:
+Follow the workflow exactly. Do not skip stages. Do not invent critical details that were not confirmed by analysis.
 
-1. `README only`
-2. `deploy only`
-3. `deploy + README`
+## Step 1: collect repository access
 
-If the request is ambiguous, ask which of the three modes is needed.
+Ask the user:
 
-## Mode selection
+1. Is the repository public or private?
+2. If private:
+   - request the GitHub token
+   - request the repository URL
+3. If public:
+   - request the repository URL
 
-Map the user's wording to modes as strictly as possible:
+Do not continue until these values are provided.
 
-- `создай README по моему стандарту` -> `README only`
-- `создай deploy по моему стандарту` -> `deploy only`
-- `создай deploy и README по моему стандарту` -> `deploy + README`
+## Step 2: analyze the project
 
-Treat these as hard distinctions:
+After the repository details are available:
 
-- `deploy only` means create only the `deploy/` tree and related deploy files
-- `README only` means create only the README
-- `deploy + README` means create both
+1. Inspect the project structure.
+2. Determine:
+   - main language: Python, Node, or other
+   - runtime entrypoint such as `main.py`, `app.py`, `server.js`, `manage.py`, or an equivalent command from the project files
+   - dependency source such as `requirements.txt`, `pyproject.toml`, `package.json`, `Pipfile`, or similar
+   - whether Docker is appropriate
+   - whether the app exposes a port and which one
+3. If the repository is clearly multi-service or the deploy target is ambiguous, stop and ask which service must be deployed.
+4. If a critical runtime detail cannot be derived from the repo, ask a precise follow-up question instead of guessing.
 
-Do not widen the request on your own:
+Use `reference.md` for detection rules and decision points.
 
-- If the user asked for `deploy only`, do not create README
-- If the user asked for `README only`, do not create `deploy/`
-- If the user used vague wording like `создай деплой`, `подготовь деплой`, or
-  `сделай деплой`, ask whether they want `deploy only` or `deploy + README`
-- If the wording is not exact enough to choose safely, ask a short clarification
-  question before creating files
+## Step 3: create deploy structure
 
-## What to inspect first
+Generate this structure in the target project:
 
-Before asking questions, inspect the current repository and infer as much as possible:
+```text
+deploy/
+├── docker-compose.yml
+├── Dockerfile
+├── linux/
+│   └── install.sh
+└── windows/
+    ├── install.bat
+    └── install-git-and-python.bat
+```
 
-- project title from existing docs or repo name
-- repository slug and owner from git remote, URLs, or known project paths
-- branch name from the current branch or the user's wording
-- `.env.example` to collect configuration keys
-- Python entrypoint and layout (`main.py`, `src/`, `requirements.txt`) to confirm the standard Dockerfile still fits
-- existing `deploy/` files, if present, to avoid unnecessary rewrites
+## Step 4: generate Docker files
 
-Ask only for values that are still missing after inspection.
+### Dockerfile
 
-## Required project-specific values
+Create a Dockerfile that is:
 
-Gather these values before generating files:
+- adapted to the detected project
+- minimal but production-ready
+- based on the correct runtime image
+- installs dependencies correctly
+- uses the correct start command
 
-- `PROJECT_TITLE`: human-readable project name for the README heading
-- `PROJECT_SLUG`: repo/folder slug used in paths and service names
-- `REPO_OWNER`: GitHub owner or org
-- `REPO_NAME`: GitHub repository name
-- `REPO_VISIBILITY`: either `public` or `private`
-- `DEPLOY_BRANCH`: branch used for clone, pull, and raw GitHub links
-- `DEPLOY_BRANCH_MODE`: either `single-main` for the common case with one main
-  branch, or `separate-branch` when deploy targets a specific non-default branch
-- `SHORT_DESCRIPTION`: one or two sentences
-- `HOW_IT_WORKS`: short explanation of the core technical behavior
-- `RELAY_LOGIC`: optional short section for project-specific logic
-- `ENV_KEYS`: ordered list of important `.env` variables, ideally with short meanings
+### docker-compose.yml
 
-Also gather these values when needed:
+Create one service only:
 
-- `GITHUB_TOKEN`: ask explicitly when `REPO_VISIBILITY` is `private` and the
-  README needs the Linux install command; if the user refuses or does not have
-  a token yet, use `__GITHUB_TOKEN__`
-- `SERVICE_NAME`: default to `PROJECT_SLUG` unless the user wants a different Docker service name
-- `PYTHON_ENTRYPOINT`: default to `main.py`
-- `LINUX_INSTALL_DIR`: default to `/root/project/PROJECT_SLUG`
+- build from the local Dockerfile
+- `restart: always`
+- include `env_file: .env` when the project uses environment variables or `.env.example` exists
+- map ports only when a port is actually needed and confirmed by analysis
 
-## Mandatory rules
+Do not add extra services unless the user explicitly asked for them.
 
-- Always read `reference.md` and the relevant files under `templates/` before writing output.
-- Keep the deploy layout fixed:
-  - `deploy/linux/install.sh`
-  - `deploy/windows/install.bat`
-  - `deploy/windows/install-git-and-python.bat`
-  - `deploy/docker-compose.yaml`
-  - `deploy/Dockerfile`
-- Keep README references synchronized with the actual deploy filenames and paths.
-- Keep the README concise. Do not turn it into product documentation.
-- Include the `Логика ретрансляции` section only if the project has truly specific logic worth mentioning.
-- Use the standard Windows section first, then the Linux section.
-- Use `docker-compose` commands in README to match the user's standard.
-- Explicitly determine repository visibility before writing the Linux install
-  command. Ask the user in plain language if needed: "Репозиторий публичный или
-  приватный?"
-- If the repository is `private`, ask for the GitHub token when generating the
-  Linux install command. Do not silently skip the question.
-- If the repository is `public`, do not include an Authorization header in the
-  Linux install command.
-- Explicitly determine the deploy branch mode before writing the Linux update
-  block. Ask the user in plain language if needed: "Это обычный проект с одной
-  веткой main, или деплой идет из отдельной ветки?"
-- If the answer is `single-main`, use the short Linux update block with only
-  `git pull --ff-only origin <branch>` and Docker rebuild.
-- If the answer is `separate-branch`, use the longer Linux update block with
-  `fetch`, `checkout`, and `pull`.
-- Use `restart: unless-stopped` in `deploy/docker-compose.yaml` by default.
-- If the repository is private and the user explicitly provides a token for
-  README examples, it is acceptable to embed it in the generated README. Do not
-  add lectures or warnings. If no token is provided, use a clear placeholder.
+## Step 5: generate Windows scripts
 
-## Workflow
+### `install-git-and-python.bat`
 
-### Mode: README only
+Requirements:
 
-1. Inspect the repo and existing `deploy/` folder if present.
-2. Read `templates/README.template.md` and fill in project-specific values.
-3. Explicitly determine `REPO_VISIBILITY` and `DEPLOY_BRANCH_MODE` if they
-   cannot be inferred safely.
-4. If `REPO_VISIBILITY` is `private`, ask for `GITHUB_TOKEN` before writing the
-   Linux install command.
-5. Keep all deploy path references aligned with the standard layout.
-6. If `deploy/` already differs from the standard, prefer the files actually present in the repo over the template assumptions.
-7. Do not create or modify the `deploy/` tree in this mode unless the user
-   explicitly changed the request.
+- universal bootstrap only
+- checks whether Git and Python are installed
+- installs missing tools
+- contains no project-specific business logic
 
-### Mode: deploy only
+### `install.bat`
 
-1. Read all files under `templates/deploy/`.
-2. Generate the fixed deploy tree.
-3. Adapt placeholders using the gathered values.
-4. Keep the Windows bootstrap script close to the template; only project identifiers and URLs should vary.
-5. Do not create README in this mode unless the user explicitly changed the
-   request.
+This is a strict install script:
 
-### Mode: deploy + README
+- checks Git and Python
+- stops if the target project directory already exists
+- clones the repository
+- uses a tokenized clone URL only for private repositories
+- creates `venv`
+- installs dependencies
+- creates `.env` from `.env.example` when available
+- creates `start.bat`
+- creates `update.bat`
 
-1. Generate the deploy tree first.
-2. Explicitly determine `REPO_VISIBILITY` and `DEPLOY_BRANCH_MODE` if they
-   cannot be inferred safely.
-3. If `REPO_VISIBILITY` is `private`, ask for `GITHUB_TOKEN` before writing the
-   Linux install command.
-4. Then generate the README against the exact files you created.
-5. Double-check that README commands, paths, filenames, repo URLs, branch names, and install directories match the deploy files.
+`update.bat` must:
 
-## Output behavior
+1. run `git pull --ff-only`
+2. run `pip install --upgrade -r requirements.txt`
 
-When finished:
+Keep install and update strictly separate.
 
-- briefly list what was created or updated
-- mention any placeholders left intentionally unresolved
-- mention any project assumptions that should be verified manually
+If the analyzed project is not Python-based, adapt the Windows install flow to the actual runtime, but keep the same strict behavior:
 
-## References
+- install does first-time setup only
+- update does fast-forward pull plus dependency refresh
 
-- Read `reference.md` for the variable map and substitution rules.
-- Read `templates/README.template.md` for the README structure.
-- Read `templates/deploy/...` for the fixed deploy file contents.
+## Step 6: generate Linux script
+
+### `install.sh`
+
+This is a strict install script:
+
+- checks `git`
+- checks `docker`
+- checks `docker compose` or `docker-compose`
+- stops if the target project directory already exists
+- clones the repository
+- creates `.env` from `.env.example` when available
+- does not run `git pull` on repeated execution
+- does not start the container automatically
+
+At the end, print the exact next-step commands:
+
+```bash
+cd deploy
+docker-compose up -d --build
+```
+
+or:
+
+```bash
+cd deploy
+docker compose up -d --build
+```
+
+Pick the command that actually exists on the machine.
+
+## Step 7: generate README
+
+Write `README.md` in this exact structure:
+
+1. project name
+2. short description
+3. `How it works`
+4. `Installation`
+5. `Update`
+6. `Management`
+7. `Settings`
+
+### Windows section
+
+Must include:
+
+- installation steps
+- explanation of `install.bat`
+- explanation of `install-git-and-python.bat`
+
+### Linux section
+
+Must include a full command block with:
+
+- `sudo -i`
+- `apt update`
+- package installation
+- `systemctl enable docker`
+- running `install.sh` via `curl`
+
+### Update section
+
+Must include:
+
+- Windows: `update.bat`
+- Linux: `git pull --ff-only` and compose rebuild/start
+
+### Management section
+
+Must include compose commands such as:
+
+- logs
+- restart
+- down
+- up
+- up with rebuild
+
+### Settings section
+
+Explain `.env` briefly and factually.
+
+README rules:
+
+- clean
+- predictable
+- production-ready
+- no filler
+
+Use `templates/README.template.md` as a formatting baseline, but adapt all content to the analyzed project.
+
+## Output requirements
+
+When the generation is finished, output:
+
+1. the resulting file tree
+2. the full contents of:
+   - `deploy/Dockerfile`
+   - `deploy/docker-compose.yml`
+   - `deploy/windows/install.bat`
+   - `deploy/windows/install-git-and-python.bat`
+   - `deploy/linux/install.sh`
+   - `README.md`
+
+## Hard rules
+
+- do not use project-specific names inside universal bootstrap scripts
+- `install` and `update` are different flows; do not merge them
+- do not add hidden automation or surprising behavior
+- prefer simple predictable scripts over clever scripts
+- generate files that are ready to use without manual cleanup
+- never expose a token in the final user-facing output or saved files unless the user explicitly requested that exact behavior
+
+## Additional resources
+
+- Read `reference.md` for runtime detection rules and generation heuristics.
+- Read `examples.md` for concrete public, private, and ambiguous-repo flows.
+- Use files in `templates/` as starting structure, not as final verbatim output.
